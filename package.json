@@ -1,14 +1,52 @@
 {
-  "name": "fast-flare",
+  "name": "riseofmachine",
+  "version": "2.05.0",
+  "rhyver": "v2.25Q1.05.0",
+  "description": "Discover AI tools curated for makers and SMBs.",
   "type": "module",
-  "version": "0.0.1",
+  "private": false,
+  "main": "src/data/tools.json",
+  "files": [
+    "src/data/tools.json"
+  ],
   "scripts": {
     "dev": "astro dev",
+    "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro"
   },
   "dependencies": {
-    "astro": "^5.5.2"
+    "@astrojs/netlify": "^6.2.3",
+    "@astrojs/partytown": "^2.1.4",
+    "@astrojs/react": "^4.2.1",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "astro": "^5.4.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@new-ui/foundations": "^0.2.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NewDesignFile/template-directory.git"
+  },
+  "bugs": {
+    "url": "https://github.com/NewDesignFile/template-directory/issues"
+  },
+  "keywords": [
+    "directory",
+    "ai",
+    "astro",
+    "template",
+    "listing",
+    "astro"
+  ],
+  "author": "@planetabhi",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
   }
 }
