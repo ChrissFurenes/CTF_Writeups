@@ -5,6 +5,8 @@ import netlify from "@astrojs/netlify";
 import partytown from "@astrojs/partytown";
 
 export default defineConfig({
+  site: 'https://chrissfurenes.github.io',
+  base: 'CTF_Writeups',
   integrations: [
     react(), 
     partytown(
