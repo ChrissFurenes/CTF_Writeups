@@ -6,7 +6,6 @@ dist/
 
 # dependencies
 node_modules/
-.netlify
 
 # logs
 npm-debug.log*
@@ -21,5 +20,8 @@ pnpm-debug.log*
 # macOS-specific files
 .DS_Store
 
-# vscode
-.vscode
+.vercel
+
+package-lock.json
+bun.lockb
+yarn.lock

@@ -1,408 +1,539 @@
 ---
-import { ViewTransitions } from "astro:transitions";
+import '@fontsource/roboto/400.css'
+import '@fontsource/roboto/500.css'
+import '@fontsource/roboto/700.css'
 
-export interface Props {
-    site: string;
-    title: string;
-    tagline: string;
+import { profileConfig, siteConfig } from '@/config'
+import ConfigCarrier from '@components/ConfigCarrier.astro'
+import {
+  AUTO_MODE,
+  BANNER_HEIGHT,
+  BANNER_HEIGHT_EXTEND,
+  BANNER_HEIGHT_HOME,
+  DARK_MODE,
+  DEFAULT_THEME,
+  LIGHT_MODE,
+  PAGE_WIDTH,
+} from '../constants/constants'
+import { defaultFavicons } from '../constants/icon'
+import type { Favicon } from '../types/config'
+import { url, pathsEqual } from '../utils/url-utils'
+import 'katex/dist/katex.css'
+
+interface Props {
+  title?: string
+  banner?: string
+  description?: string
+  lang?: string
+  setOGTypeArticle?: boolean
 }
 
-const { site, title, tagline } = Astro.props;
+let { title, banner, description, lang, setOGTypeArticle } = Astro.props
+
+// apply a class to the body element to decide the height of the banner, only used for initial page load
+// Swup can update the body for each page visit, but it's after the page transition, causing a delay for banner height change
+// so use Swup hooks instead to change the height immediately when a link is clicked
+const isHomePage = pathsEqual(Astro.url.pathname, url('/'))
+
+// defines global css variables
+// why doing this in Layout instead of GlobalStyles: https://github.com/withastro/astro/issues/6728#issuecomment-1502203757
+const configHue = siteConfig.themeColor.hue
+if (!banner || typeof banner !== 'string' || banner.trim() === '') {
+  banner = siteConfig.banner.src
+}
+
+// TODO don't use post cover as banner for now
+banner = siteConfig.banner.src
+
+const enableBanner = siteConfig.banner.enable
+
+let pageTitle: string
+if (title) {
+  pageTitle = `${title} - ${siteConfig.title}`
+} else {
+  pageTitle = `${siteConfig.title} - ${siteConfig.subtitle}`
+}
+
+const favicons: Favicon[] =
+  siteConfig.favicon.length > 0 ? siteConfig.favicon : defaultFavicons
+
+// const siteLang = siteConfig.lang.replace('_', '-')
+if (!lang) {
+  lang = `${siteConfig.lang}`
+}
+const siteLang = lang.replace('_', '-')
+
+const bannerOffsetByPosition = {
+  top: `${BANNER_HEIGHT_EXTEND}vh`,
+  center: `${BANNER_HEIGHT_EXTEND / 2}vh`,
+  bottom: '0',
+}
+const bannerOffset =
+  bannerOffsetByPosition[siteConfig.banner.position || 'center']
 ---
 
-<!doctype html>
-<html lang="en" data-new-ui-theme="light">
-    <head>
-        <ViewTransitions />
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width" />
-        <link rel="icon" type="image/svg+xml" href="/rise-of-machine.png" />
-        <meta name="generator" content={Astro.generator} />
-        <title>{site} — Discover AI tools curated for makers and SMBs.</title>
-        <meta name="author" content="Method Black" />
-        <meta
-            name="description"
-            content="Discover AI tools curated for makers and SMBs."
-        />
-        <meta property="og:title" content="Rise of Machine" />
+<!DOCTYPE html>
+<html lang={siteLang} class="bg-[var(--page-bg)] transition text-[14px] md:text-[16px]"
+	  data-overlayscrollbars-initialize
+>
+	<head>
+
+		<title>{pageTitle}</title>
+
+		<meta charset="UTF-8" />
+		<meta name="description" content={description || pageTitle}>
+		<meta name="author" content={profileConfig.name}>
+
+		<meta property="og:site_name" content={siteConfig.title}>
+		<meta property="og:url" content={Astro.url}>
+		<meta property="og:title" content={pageTitle}>
+		<meta property="og:description" content={description || pageTitle}>
+		{setOGTypeArticle ? (
+        <meta property="og:type" content="article" />
+        ) : (
         <meta property="og:type" content="website" />
-        <meta
-            property="og:description"
-            content="Discover AI tools curated for makers and SMBs."
-        />
-        <meta
-            property="og:image"
-            content="https://res.cloudinary.com/drwfwpkeo/image/upload/v1703755911/Light_Screenshot_ub9ydn.png"
-        />
-        <meta property="og:url" content="https://riseofmachine.com/" />
-        <meta name="twitter:card" content="summary_large_image" />
+        )}
 
-        <!-- Google tag (gtag.js) -->
-        <script type="text/partytown" async src="https://www.googletagmanager.com/gtag/js?id=G-S08Z38BTMJ"></script>
-        <script type="text/partytown">
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
+		<meta name="twitter:card" content="summary_large_image">
+		<meta property="twitter:url" content={Astro.url}>
+		<meta name="twitter:title" content={pageTitle}>
+		<meta name="twitter:description" content={description || pageTitle}>
 
-            gtag('config', 'G-S08Z38BTMJ');
-        </script>
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		{favicons.map(favicon => (
+			<link rel="icon"
+				  href={favicon.src.startsWith('/') ? url(favicon.src) : favicon.src}
+				  sizes={favicon.sizes}
+				  media={favicon.theme && `(prefers-color-scheme: ${favicon.theme})`}
+			/>
+		))}
 
-    </head>
+		<!-- Set the theme before the page is rendered to avoid a flash -->
+		<script is:inline define:vars={{DEFAULT_THEME, LIGHT_MODE, DARK_MODE, AUTO_MODE, BANNER_HEIGHT_EXTEND, PAGE_WIDTH, configHue}}>
+			// Load the theme from local storage
+			const theme = localStorage.getItem('theme') || DEFAULT_THEME;
+			switch (theme) {
+				case LIGHT_MODE:
+					document.documentElement.classList.remove('dark');
+					break
+				case DARK_MODE:
+					document.documentElement.classList.add('dark');
+					break
+				case AUTO_MODE:
+					if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+						document.documentElement.classList.add('dark');
+					} else {
+						document.documentElement.classList.remove('dark');
+					}
+			}
 
-    <body>
-        <div class="floating-nav" aria-label="main navigation">
-            <div class="logo">
-                <a href="/" aria-label="home page" tabindex="-1"
-                    ><img
-                        src="/rise-of-machine.png"
-                        width="24"
-                        height="24"
-                        alt="Rise of Machine"
-                        aria-hidden="true"
-                    /></a
-                >
-            </div>
-            <div class="btn-group">
-                <a
-                    href="https://github.com/NewDesignFile/template-directory/issues"
-                    target="_blank"
-                    class="submit-btn"
-                    tabindex="0">Submit a Tool</a
-                >
-                <button
-                    class="theme-toggle"
-                    id="theme-toggle"
-                    title="Toggles light & dark"
-                    aria-label="auto"
-                    aria-live="polite"
-                >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        fill="none"
-                        ><path
-                            stroke="var(--icon-secondary)"
-                            stroke-linecap="round"
-                            stroke-miterlimit="10"
-                            stroke-width="1.5"
-                            d="M12 4V2M3 13H1m22 0h-2m-1.222-7.778-1.414 1.414m-12.728 0L4.222 5.222M4 18h16M8 21h8m-7.43-3.07A5.98 5.98 0 0 1 6 13c0-3.31 2.69-6 6-6s6 2.69 6 6c0 2.05-1.03 3.86-2.6 4.94l-6.83-.01Z"
-                        ></path></svg
-                    >
-                </button>
-            </div>
-        </div>
+			// Load the hue from local storage
+			const hue = localStorage.getItem('hue') || configHue;
+			document.documentElement.style.setProperty('--hue', hue);
 
-        <header class="nu-u-mb-10 nu-u-mt-10">
-            <div class="container">
-                <h1
-                    class="nu-c-h3 nu-u-text--primary nu-u-mt-0 nu-u-mb-2 title"
-                >
-                    {title}
-                </h1>
-                <p class="nu-c-fs-normal nu-u-text--secondary description-text">
-                    {tagline}
-                </p>
-            </div>
-        </header>
-        <slot />
+			// calculate the --banner-height-extend, which needs to be a multiple of 4 to avoid blurry text
+			let offset = Math.floor(window.innerHeight * (BANNER_HEIGHT_EXTEND / 100));
+			offset = offset - offset % 4;
+			document.documentElement.style.setProperty('--banner-height-extend', `${offset}px`);
+		</script>
+		<style define:vars={{
+			configHue,
+			'page-width': `${PAGE_WIDTH}rem`,
+		}}></style>  <!-- defines global css variables. This will be applied to <html> <body> and some other elements idk why -->
 
-        <div class="footer">
-            <p>
-                ABHIMANYU RANA 2025 © <br /> <a
-                    href="https://planetabhi.com/"
-                    class="nu-u-link--subtle"
-                    target="_blank">@planetabhi</a
-                >
-            </p>
-        </div>
-    </body>
+
+		<slot name="head"></slot>
+
+		<link rel="alternate" type="application/rss+xml" title={profileConfig.name} href={`${Astro.site}rss.xml`}/>
+
+	</head>
+	<body class=" min-h-screen transition " class:list={[{"lg:is-home": isHomePage, "enable-banner": enableBanner}]}
+		  data-overlayscrollbars-initialize
+	>
+		<ConfigCarrier></ConfigCarrier>
+		<slot />
+
+		<!-- increase the page height during page transition to prevent the scrolling animation from jumping -->
+		<div id="page-height-extend" class="hidden h-[300vh]"></div>
+	</body>
 </html>
-<style is:global>
-    @font-face {
-        font-family: "Inter";
-        font-style: normal;
-        font-weight: 100 900;
-        src: url("/fonts/InterVariable.woff2") format("woff2");
-    }
-    :root {
-        --accent: var(--link);
-        --body-copy: "Inter", var(--system-ui);
-    }
-    html {
-        font-family: var(--body-copy);
-        background-color: var(--background);
-    }
-    body {
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        overflow-x: hidden;
-    }
-    main,
-    .container {
-        margin: var(--spacing-09);
-    }
-    section {
-        margin-bottom: var(--spacing-10);
-    }
-    h1.title {
-        max-inline-size: 24rem;
-    }
-    p {
-        margin-top: var(--spacing-00);
-    }
-    p.description-text {
-        max-inline-size: 24rem;
-    }
-    .nu-u-link--subtle {
-        color: var(--text-secondary) !important;
-    }
-    .floating-nav {
-        padding: var(--spacing-06) var(--spacing-09);
-        top: 0;
-        left: 0;
-        right: 0;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        z-index: 999999;
-    }
-    .btn-group {
-        display: flex;
-        gap: var(--spacing-03);
-        align-items: center;
-    }
-    .submit-btn {
-        padding: 0.5625rem 0.9375rem;
-        border: 1px solid var(--border-muted);
-        outline: none;
-        text-decoration: none;
-        color: inherit;
-        color: var(--text-secondary);
-        background-color: var(--background);
-        border-radius: var(--spacing-03);
-        font-size: var(--desktop-body-sm);
 
-        &:hover {
-            background-color: var(--background-secondary);
-            color: var(--text-primary);
-        }
+<style is:global define:vars={{
+	bannerOffset,
+	'banner-height-home': `${BANNER_HEIGHT_HOME}vh`,
+	'banner-height': `${BANNER_HEIGHT}vh`,
+}}>
+@tailwind components;
+@layer components {
+	.enable-banner.is-home #banner-wrapper {
+		@apply h-[var(--banner-height-home)] translate-y-[var(--banner-height-extend)]
+	}
+	.enable-banner #banner-wrapper {
+		@apply h-[var(--banner-height-home)]
+	}
 
-        &:active {
-            background-color: var(--background);
-            color: var(--text-secondary);
-        }
-
-        &.disabled {
-            background-color: var(--background);
-            color: var(--icon-secondary);
-            pointer-events: none;
-        }
-
-        &:focus {
-            background-color: var(--background);
-            outline: 1px solid var(--button-primary);
-            color: var(--icon-secondary);
-        }
-    }
-    .theme-toggle {
-        z-index: 999;
-        --icon-fill: var(--icon-secondary);
-        --icon-fill-hover: var(--icon-secondary);
-        width: var(--spacing-09);
-        height: var(--spacing-09);
-        background: none;
-        border: none;
-        padding: var(--spacing-00);
-        color: var(--icon-secondary);
-        cursor: pointer;
-        touch-action: manipulation;
-        -webkit-tap-highlight-color: transparent;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        border-radius: var(--spacing-02);
-
-        @nest [data-theme="dark"] & {
-            --icon-fill: var(--icon-secondary);
-            --icon-fill-hover: var(--icon-secondary);
-        }
-    }
-    .footer p {
-        padding-bottom: var(--spacing-10);
-        text-align: center;
-        font-weight: normal;
-        font-style: normal;
-        color: var(--text-secondary-alt);
-        font-size: var(--desktop-body-sm);
-        line-height: var(--lh-desktop-body);
-    }
-
-    @media (max-width: 30rem) {
-        main {
-            margin: auto var(--spacing-06);
-        }
-        .floating-nav {
-            padding: var(--spacing-06) var(--spacing-06);
-        }
-        .container {
-            margin: var(--spacing-06);
-        }
-    }
-
-    /* logo animation */
-    .logo {
-        transition: all 0.2s ease-out;
-        padding-top: var(--spacing-03);
-    }
-    .logo:hover {
-        animation: buzz 0.32s linear 2;
-        transform: scale(1.1) translateZ(0);
-        filter: brightness(1.1);
-    }
-    @keyframes buzz {
-        50% {
-            transform: translateX(3px) rotate(2deg);
-        }
-        100% {
-            transform: translateX(-3px) rotate(-2deg);
-        }
-    }
-    @supports (not (animation: buzz)) {
-        .logo:hover {
-            -webkit-animation: buzz 0.32s linear 2;
-        }
-    }
-    @media (prefers-reduced-motion: reduce) {
-        .logo:hover {
-            animation: none;
-            transform: scale(1.2);
-        }
-    }
-
+	.enable-banner.is-home #banner {
+		@apply h-[var(--banner-height-home)] translate-y-0
+	}
+	.enable-banner #banner {
+		@apply h-[var(--banner-height-home)] translate-y-[var(--bannerOffset)]
+	}
+	.enable-banner.is-home #main-grid {
+		@apply translate-y-[var(--banner-height-extend)];
+	}
+	.enable-banner #top-row {
+		@apply h-[calc(var(--banner-height-home)_-_4.5rem)] transition-all duration-300
+	}
+	.enable-banner.is-home #sidebar-sticky {
+		@apply top-[calc(1rem_-_var(--banner-height-extend))]
+	}
+	.navbar-hidden {
+		@apply opacity-0 -translate-y-16
+	}
+}
 </style>
 
-<script is:inline>
-    history.scrollRestoration = "manual";
-    window.onbeforeunload = function () {
-        window.scrollTo(0, 0);
-    };
+<script>
+import 'overlayscrollbars/overlayscrollbars.css';
+import {
+	OverlayScrollbars,
+	// ScrollbarsHidingPlugin,
+	// SizeObserverPlugin,
+	// ClickScrollPlugin
+} from 'overlayscrollbars';
+import {getHue, getStoredTheme, setHue, setTheme} from "../utils/setting-utils";
+import {pathsEqual, url} from "../utils/url-utils";
+import {
+	BANNER_HEIGHT,
+	BANNER_HEIGHT_HOME,
+	BANNER_HEIGHT_EXTEND,
+	MAIN_PANEL_OVERLAPS_BANNER_HEIGHT,
+	PAGE_WIDTH
+} from "../constants/constants";
 
-    const nav = document.querySelector(".floating-nav");
-    const pageCTA = document.querySelector(".floating-nav .submit-btn");
-    var pageCTAPosition = 0;
-    if (pageCTA) {
-        pageCTAPosition = pageCTA.getBoundingClientRect().bottom;
-    }
+/* Preload fonts */
+// (async function() {
+// 	try {
+// 		await Promise.all([
+// 			document.fonts.load("400 1em Roboto"),
+// 			document.fonts.load("700 1em Roboto"),
+// 		]);
+// 		document.body.classList.remove("hidden");
+// 	} catch (error) {
+// 		console.log("Failed to load fonts:", error);
+// 	}
+// })();
 
-    var previousScrollPosition = 0;
+/* TODO This is a temporary solution for style flicker issue when the transition is activated */
+/* issue link: https://github.com/withastro/astro/issues/8711, the solution get from here too */
+/* update: fixed in Astro 3.2.4 */
+/*
+function disableAnimation() {
+	const css = document.createElement('style')
+	css.appendChild(
+		document.createTextNode(
+			`*{
+              -webkit-transition:none!important;
+              -moz-transition:none!important;
+              -o-transition:none!important;
+              -ms-transition:none!important;
+              transition:none!important
+              }`
+		)
+	)
+	document.head.appendChild(css)
 
-    const handleNavScroll = () => {
-        let currentScrolledPosition = window.scrollY || window.pageYOffset;
-        if (isScrollingDown()) {
-            nav.classList.add("scroll-down");
-            nav.classList.remove("scroll-up");
-        } else {
-            nav.classList.add("scroll-up");
-            nav.classList.remove("scroll-down");
-        }
-        if (currentScrolledPosition > pageCTAPosition + 50) {
-            if (!nav.classList.contains("is-active")) {
-                nav.classList.add("is-active");
+	return () => {
+		// Force restyle
+		;(() => window.getComputedStyle(document.body))()
+
+		// Wait for next tick before removing
+		setTimeout(() => {
+			document.head.removeChild(css)
+		}, 1)
+	}
+}
+*/
+
+const bannerEnabled = !!document.getElementById('banner-wrapper')
+
+function setClickOutsideToClose(panel: string, ignores: string[]) {
+	document.addEventListener("click", event => {
+		let panelDom = document.getElementById(panel);
+		let tDom = event.target;
+		if (!(tDom instanceof Node)) return;		// Ensure the event target is an HTML Node
+		for (let ig of ignores) {
+			let ie = document.getElementById(ig)
+			if (ie == tDom || (ie?.contains(tDom))) {
+				return;
+			}
+		}
+		panelDom!.classList.add("float-panel-closed");
+	});
+}
+setClickOutsideToClose("display-setting", ["display-setting", "display-settings-switch"])
+setClickOutsideToClose("nav-menu-panel", ["nav-menu-panel", "nav-menu-switch"])
+setClickOutsideToClose("search-panel", ["search-panel", "search-bar", "search-switch"])
+
+
+function loadTheme() {
+	const theme = getStoredTheme()
+	setTheme(theme)
+}
+
+function loadHue() {
+	setHue(getHue())
+}
+
+function initCustomScrollbar() {
+	const bodyElement = document.querySelector('body');
+	if (!bodyElement) return;
+	OverlayScrollbars(
+		// docs say that a initialization to the body element would affect native functionality like window.scrollTo
+		// but just leave it here for now
+		{
+			target: bodyElement,
+			cancel: {
+				nativeScrollbarsOverlaid: true,    // don't initialize the overlay scrollbar if there is a native one
+			}
+		}, {
+		scrollbars: {
+			theme: 'scrollbar-base scrollbar-auto py-1',
+			autoHide: 'move',
+			autoHideDelay: 500,
+			autoHideSuspend: false,
+		},
+	});
+	const preElements = document.querySelectorAll('pre');
+	preElements.forEach((ele) => {
+		OverlayScrollbars(ele, {
+			scrollbars: {
+				theme: 'scrollbar-base scrollbar-dark px-2',
+				autoHide: 'leave',
+				autoHideDelay: 500,
+				autoHideSuspend: false
+			}
+		});
+	});
+	const katexElements = document.querySelectorAll('.katex-display') as NodeListOf<HTMLElement>;
+	katexElements.forEach((ele) => {
+		OverlayScrollbars(ele, {
+			scrollbars: {
+				theme: 'scrollbar-base scrollbar-auto py-1',
+			}
+		});
+	});
+}
+
+function showBanner() {
+	const banner = document.getElementById('banner')
+	if (!banner) {
+		console.error('Failed to find the banner element')
+		return
+	}
+	banner.classList.remove('opacity-0', 'scale-105')
+}
+
+function init() {
+	// disableAnimation()()		// TODO
+	loadTheme();
+	loadHue();
+	initCustomScrollbar();
+	showBanner();
+}
+
+/* Load settings when entering the site */
+init();
+
+const setup = () => {
+	// TODO: temp solution to change the height of the banner
+/*
+	window.swup.hooks.on('animation:out:start', () => {
+		const path = window.location.pathname
+		const body = document.querySelector('body')
+		if (path[path.length - 1] === '/' && !body.classList.contains('is-home')) {
+			body.classList.add('is-home')
+		} else if (path[path.length - 1] !== '/' && body.classList.contains('is-home')) {
+			body.classList.remove('is-home')
+		}
+	})
+*/
+	window.swup.hooks.on('link:click', () => {
+		// Remove the delay for the first time page load
+		document.documentElement.style.setProperty('--content-delay', '0ms')
+
+		// prevent elements from overlapping the navbar
+		if (!bannerEnabled) {
+			return
+		}
+		let threshold = window.innerHeight * (BANNER_HEIGHT / 100) - 72 - 16
+		let navbar = document.getElementById('navbar-wrapper')
+		if (!navbar || !document.body.classList.contains('lg:is-home')) {
+			return
+		}
+		if (document.body.scrollTop >= threshold || document.documentElement.scrollTop >= threshold) {
+			navbar.classList.add('navbar-hidden')
+		}
+	})
+	window.swup.hooks.on('content:replace', initCustomScrollbar)
+	window.swup.hooks.on('visit:start', (visit: {to: {url: string}}) => {
+		// change banner height immediately when a link is clicked
+		const bodyElement = document.querySelector('body')
+		if (pathsEqual(visit.to.url, url('/'))) {
+			bodyElement!.classList.add('lg:is-home');
+		} else {
+			bodyElement!.classList.remove('lg:is-home');
+		}
+
+		// increase the page height during page transition to prevent the scrolling animation from jumping
+		const heightExtend = document.getElementById('page-height-extend')
+		if (heightExtend) {
+			heightExtend.classList.remove('hidden')
+		}
+
+		// Hide the TOC while scrolling back to top
+		let toc = document.getElementById('toc-wrapper');
+		if (toc) {
+			toc.classList.add('toc-not-ready')
+		}
+	});
+	window.swup.hooks.on('page:view', () => {
+		// hide the temp high element when the transition is done
+		const heightExtend = document.getElementById('page-height-extend')
+		if (heightExtend) {
+			heightExtend.classList.remove('hidden')
+		}
+	});
+	window.swup.hooks.on('visit:end', (visit: {to: {url: string}}) => {
+		setTimeout(() => {
+			const heightExtend = document.getElementById('page-height-extend')
+			if (heightExtend) {
+				heightExtend.classList.add('hidden')
+			}
+
+            // Just make the transition looks better
+            const toc = document.getElementById('toc-wrapper');
+            if (toc) {
+                toc.classList.remove('toc-not-ready')
             }
-        } else {
-            if (nav.classList.contains("is-active")) {
-                nav.classList.remove("is-active");
-            }
-        }
-    };
+        }, 200)
+	});
+}
+if (window?.swup?.hooks) {
+	setup()
+} else {
+	document.addEventListener('swup:enable', setup)
+}
 
-    function isScrollingDown() {
-        let currentScrolledPosition = window.scrollY || window.pageYOffset;
-        let scrollingDown;
-        if (currentScrolledPosition > previousScrollPosition) {
-            scrollingDown = true;
-        } else {
-            scrollingDown = false;
-        }
-        previousScrollPosition = currentScrolledPosition;
-        return scrollingDown;
-    }
+let backToTopBtn = document.getElementById('back-to-top-btn');
+let toc = document.getElementById('toc-wrapper');
+let navbar = document.getElementById('navbar-wrapper')
+function scrollFunction() {
+	let bannerHeight = window.innerHeight * (BANNER_HEIGHT / 100)
 
-    var throttleWait;
-    function throttle(callback, time) {
-        if (throttleWait) return;
-        throttleWait = true;
-        setTimeout(() => {
-            callback();
-            throttleWait = false;
-        }, time);
-    }
+	if (backToTopBtn) {
+		if (document.body.scrollTop > bannerHeight || document.documentElement.scrollTop > bannerHeight) {
+			backToTopBtn.classList.remove('hide')
+		} else {
+			backToTopBtn.classList.add('hide')
+		}
+	}
 
-    window.addEventListener("scroll", () => {
-        throttle(handleNavScroll, 80);
-    });
+	if (bannerEnabled && toc) {
+		if (document.body.scrollTop > bannerHeight || document.documentElement.scrollTop > bannerHeight) {
+			toc.classList.remove('toc-hide')
+		} else {
+			toc.classList.add('toc-hide')
+		}
+	}
+
+	if (!bannerEnabled) return
+	if (navbar) {
+		const NAVBAR_HEIGHT = 72
+		const MAIN_PANEL_EXCESS_HEIGHT = MAIN_PANEL_OVERLAPS_BANNER_HEIGHT * 16			// The height the main panel overlaps the banner
+
+		let bannerHeight = BANNER_HEIGHT
+		if (document.body.classList.contains('lg:is-home') && window.innerWidth >= 1024) {
+			bannerHeight = BANNER_HEIGHT_HOME
+		}
+		let threshold = window.innerHeight * (bannerHeight / 100) - NAVBAR_HEIGHT - MAIN_PANEL_EXCESS_HEIGHT - 16
+		if (document.body.scrollTop >= threshold || document.documentElement.scrollTop >= threshold) {
+			navbar.classList.add('navbar-hidden')
+		} else {
+			navbar.classList.remove('navbar-hidden')
+		}
+	}
+}
+window.onscroll = scrollFunction
+
+window.onresize = () => {
+	// calculate the --banner-height-extend, which needs to be a multiple of 4 to avoid blurry text
+	let offset = Math.floor(window.innerHeight * (BANNER_HEIGHT_EXTEND / 100));
+	offset = offset - offset % 4;
+	document.documentElement.style.setProperty('--banner-height-extend', `${offset}px`);
+}
+
 </script>
 
-<script is:inline>
-    // Initial theme setup
-    const theme = (() => {
-        if (
-            typeof localStorage !== "undefined" &&
-            localStorage.getItem("theme-preference")
-        ) {
-            return localStorage.getItem("theme-preference");
-        }
-        return window.matchMedia("(prefers-color-scheme: dark)").matches
-            ? "dark"
-            : "light";
-    })();
+<script>
+import PhotoSwipeLightbox from "photoswipe/lightbox"
+import "photoswipe/style.css"
 
-    document.firstElementChild.setAttribute("data-new-ui-theme", theme);
+let lightbox: PhotoSwipeLightbox
+let pswp = import("photoswipe")
 
-    // Handle theme toggle
-    function toggleTheme() {
-        const currentTheme =
-            document.firstElementChild.getAttribute("data-new-ui-theme");
-        const newTheme = currentTheme === "light" ? "dark" : "light";
+function createPhotoSwipe() {
+	lightbox = new PhotoSwipeLightbox({
+		gallery: ".custom-md img, #post-cover img",
+		pswpModule: () => pswp,
+		closeSVG: '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#ffffff"><path d="M480-424 284-228q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536-480l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-424Z"/></svg>',
+		zoomSVG: '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#ffffff"><path d="M340-540h-40q-17 0-28.5-11.5T260-580q0-17 11.5-28.5T300-620h40v-40q0-17 11.5-28.5T380-700q17 0 28.5 11.5T420-660v40h40q17 0 28.5 11.5T500-580q0 17-11.5 28.5T460-540h-40v40q0 17-11.5 28.5T380-460q-17 0-28.5-11.5T340-500v-40Zm40 220q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l224 224q11 11 11 28t-11 28q-11 11-28 11t-28-11L532-372q-30 24-69 38t-83 14Zm0-80q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>',
+		padding: { top: 20, bottom: 20, left: 20, right: 20 },
+		wheelToZoom: true,
+		arrowPrev: false,
+		arrowNext: false,
+		imageClickAction: 'close',
+		tapAction: 'close',
+		doubleTapAction: 'zoom',
+	})
 
-        document.firstElementChild.setAttribute("data-new-ui-theme", newTheme);
-        localStorage.setItem("theme-preference", newTheme);
-    }
+	lightbox.addFilter("domItemData", (itemData, element) => {
+		if (element instanceof HTMLImageElement) {
+			itemData.src = element.src
 
-    // Initialize toggle button
-    function initThemeToggle() {
-        const themeToggle = document.querySelector("#theme-toggle");
-        if (themeToggle) {
-            themeToggle.addEventListener("click", toggleTheme);
-        }
-    }
+			itemData.w = Number(element.naturalWidth || window.innerWidth)
+			itemData.h = Number(element.naturalHeight || window.innerHeight)
 
-    // Handle page transitions
-    document.addEventListener("astro:page-load", () => {
-        const storedTheme = localStorage.getItem("theme-preference");
-        if (storedTheme) {
-            document.firstElementChild.setAttribute(
-                "data-new-ui-theme",
-                storedTheme,
-            );
-        }
-        initThemeToggle();
-    });
+			itemData.msrc = element.src
+		}
 
-    // Handle system theme changes
-    window
-        .matchMedia("(prefers-color-scheme: dark)")
-        .addEventListener("change", ({ matches: isDark }) => {
-            const newTheme = isDark ? "dark" : "light";
-            document.firstElementChild.setAttribute(
-                "data-new-ui-theme",
-                newTheme,
-            );
-            localStorage.setItem("theme-preference", newTheme);
-        });
+		return itemData
+	})
 
-    // Initialize on first load
-    initThemeToggle();
+	lightbox.init()
+}
+
+const setup = () => {
+	if (!lightbox) {
+		createPhotoSwipe()
+	}
+	window.swup.hooks.on("page:view", () => {
+		createPhotoSwipe()
+	})
+
+	window.swup.hooks.on(
+		"content:replace",
+		() => {
+			lightbox?.destroy?.()
+		},
+		{ before: true },
+	)
+}
+
+if (window.swup) {
+	setup()
+} else {
+	document.addEventListener("swup:enable", setup)
+}
 </script>
